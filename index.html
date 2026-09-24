@@ -34,11 +34,21 @@
     .levelrow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
     .leveltitle{font-weight:900;font-size:17px}
     .difficulty{font-size:12px;color:#fde68a;background:#f59e0b1a;border:1px solid #f59e0b50;padding:5px 8px;border-radius:999px}
-    .status{min-height:26px;display:flex;align-items:center;justify-content:center;text-align:center;color:#dbeafe;font-size:14px;font-weight:700;margin-bottom:10px}
+    .status{min-height:30px;display:flex;align-items:center;justify-content:center;text-align:center;color:#dbeafe;font-size:14px;font-weight:800;margin-bottom:9px;padding:5px 9px;border-radius:10px;background:#ffffff08;border:1px solid #ffffff0a}
+    .game-info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+    .info-chip{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:11px;background:#ffffff09;border:1px solid #ffffff0f;color:var(--muted);font-size:11px;font-weight:700}
+    .info-chip b{font-size:12px;color:#f8fafc}
     .board-wrap{position:relative;width:100%;aspect-ratio:1;border-radius:12px;overflow:hidden;border:3px solid #26364f;box-shadow:0 12px 30px #0007}
     .board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));width:100%;height:100%;min-width:0;min-height:0}
-    .sq{position:relative;border:0;padding:0;margin:0;display:grid;place-items:center;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;font-size:clamp(28px,9vw,48px);line-height:1;cursor:pointer;user-select:none;appearance:none;-webkit-appearance:none}
+    .sq{position:relative;border:0;padding:0;margin:0;display:grid;place-items:center;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;font-size:clamp(28px,9vw,48px);line-height:1;cursor:pointer;user-select:none;appearance:none;-webkit-appearance:none;transition:filter .14s ease,box-shadow .14s ease}
     .light{background:var(--light)} .dark{background:var(--dark)}
+    .piece{display:grid;place-items:center;width:86%;height:86%;font-size:inherit;line-height:1;filter:drop-shadow(0 2px 1px #0004);transform-origin:center;pointer-events:none}
+    .sq.last-from{box-shadow:inset 0 0 0 999px #38bdf824}
+    .sq.last-to{box-shadow:inset 0 0 0 999px #38bdf83d}
+    .sq.last-to .piece{animation:pieceLand .22s cubic-bezier(.2,.9,.25,1.25)}
+    .sq.check-king{box-shadow:inset 0 0 0 999px #ef44445c!important;animation:checkPulse .75s ease-in-out infinite alternate}
+    @keyframes pieceLand{0%{transform:scale(.72)}65%{transform:scale(1.12)}100%{transform:scale(1)}}
+    @keyframes checkPulse{from{filter:saturate(1)}to{filter:saturate(1.25) brightness(1.08)}}
     .sq.selected{outline:4px solid var(--select);outline-offset:-4px}
     .sq.legal::after{content:"";position:absolute;width:24%;height:24%;border-radius:50%;background:#22c55ebd;box-shadow:0 0 0 4px #ffffff33}
     .sq.capture::after{content:"";position:absolute;inset:8%;border:4px solid #22c55ecc;border-radius:50%}
@@ -63,6 +73,12 @@
     .modal.show{display:flex}
     .modal-card{width:min(100%,390px);background:#111d31;border:1px solid #ffffff1a;border-radius:22px;padding:24px;text-align:center;box-shadow:0 28px 80px #000b}
     .trophy{font-size:64px}.modal h2{margin:8px 0 7px;font-size:25px}.modal p{color:var(--muted);line-height:1.5;margin:0 0 16px}
+    .stars{font-size:29px;letter-spacing:5px;margin:3px 0 11px;color:#fbbf24;text-shadow:0 2px 12px #f59e0b55}
+    .modal-card.win{animation:winPop .32s cubic-bezier(.2,.9,.25,1.15)}
+    .modal-card.win .trophy{animation:trophyBounce .55s ease-out}
+    @keyframes winPop{from{transform:scale(.9);opacity:.4}to{transform:scale(1);opacity:1}}
+    @keyframes trophyBounce{0%{transform:translateY(12px) scale(.8)}60%{transform:translateY(-7px) scale(1.1)}100%{transform:none}}
+    @media (prefers-reduced-motion:reduce){.sq,.piece,.sq.last-to .piece,.sq.check-king,.modal-card.win,.modal-card.win .trophy{animation:none!important;transition:none!important}}
     .modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
     .modal-actions button{padding:12px;border-radius:12px;border:1px solid #ffffff1a;background:#ffffff0e;color:white;font-weight:900}
     .modal-actions .next{background:linear-gradient(135deg,#22c55e,#16a34a);border:0}
@@ -87,6 +103,10 @@
         <div class="difficulty" id="difficulty">Rookie</div>
       </div>
       <div class="status" id="status">Your turn — you are White</div>
+      <div class="game-info">
+        <div class="info-chip"><span>⚪ You</span><b id="moveCount">Move 1</b></div>
+        <div class="info-chip"><span>⚫ AI</span><b id="aiStrength">Rookie</b></div>
+      </div>
 
       <div class="board-wrap"><div class="board" id="board"></div></div>
 
@@ -110,6 +130,7 @@
     <div class="modal-card">
       <div class="trophy" id="modalIcon">🏆</div>
       <h2 id="modalTitle">Level Complete!</h2>
+      <div class="stars" id="modalStars" aria-label="Level rating">★★★</div>
       <p id="modalText">Nice game.</p>
       <div class="modal-actions">
         <button id="againBtn">Play Again</button>
@@ -167,11 +188,18 @@
           const btn=document.createElement('button');
           btn.className='sq '+(((r+f)%2===0)?'dark':'light');
           if(selected===sqName) btn.classList.add('selected');
-          if(lastMove.includes(sqName)) btn.classList.add('last');
+          if(lastMove[0]===sqName) btn.classList.add('last-from');
+          if(lastMove[1]===sqName) btn.classList.add('last-to');
           const target=legalTargets.find(m=>m.to===sqName);
           if(target) btn.classList.add(target.captured?'capture':'legal');
           btn.dataset.square=sqName;
-          if(piece) btn.textContent=PIECES[piece.color][piece.type];
+          if(piece){
+            const ps=document.createElement('span');
+            ps.className='piece';
+            ps.textContent=PIECES[piece.color][piece.type];
+            btn.appendChild(ps);
+            if(game.in_check() && piece.type==='k' && piece.color===game.turn()) btn.classList.add('check-king');
+          }
 
           if(r===1){
             const c=document.createElement('span'); c.className='coord file'; c.textContent=files[f]; btn.appendChild(c);
@@ -213,6 +241,11 @@
     }
 
     function renderStatus(){
+      const fullMoves=Math.floor(game.history().length/2)+1;
+      const mc=document.getElementById('moveCount');
+      const ai=document.getElementById('aiStrength');
+      if(mc) mc.textContent='Move '+fullMoves;
+      if(ai) ai.textContent=levelsMeta[level-1];
       if(game.game_over()) return;
       if(aiThinking){
         statusEl.textContent='AI is thinking…';
@@ -232,7 +265,14 @@
       for(const row of board) for(const p of row){
         if(!p) continue;
         let v=VALUES[p.type]||0;
-        if(p.type==='p') v += p.color==='b' ? (6-p.rank)*0 : 0;
+        const centerFiles=[2,3,4,5];
+        const centerRanks=[2,3,4,5];
+        const rr=board.indexOf(row), ff=row.indexOf(p);
+        if((p.type==='n'||p.type==='b') && centerFiles.includes(ff) && centerRanks.includes(rr)) v+=18;
+        if(p.type==='p'){
+          const advance=p.color==='b'?rr:(7-rr);
+          v+=Math.max(0,advance-1)*5;
+        }
         score += p.color==='b'?v:-v;
       }
       if(g.in_check()) score += g.turn()==='w'?35:-35;
@@ -294,9 +334,9 @@
         return choice;
       }
 
-      const depth = level>=18 ? 3 : 2;
+      const depth = level>=17 ? 3 : 2;
       let best=-Infinity, choices=[];
-      const cap = depth===3 ? Math.min(moves.length,16) : moves.length;
+      const cap = level>=20 ? Math.min(moves.length,22) : (depth===3 ? Math.min(moves.length,18) : moves.length);
       for(let i=0;i<cap;i++){
         const m=moves[i];
         game.move(m.san);
@@ -349,15 +389,22 @@
       }
 
       statusEl.textContent=win?'You won!':'Game over';
-      showModal(title,text,icon,win);
+      const ply=game.history().length;
+      const stars=win?(ply<=40?3:(ply<=70?2:1)):0;
+      showModal(title,text,icon,win,stars);
       renderLevels();
       return true;
     }
 
-    function showModal(title,text,icon,won){
+    function showModal(title,text,icon,won,stars=0){
       document.getElementById('modalTitle').textContent=title;
       document.getElementById('modalText').textContent=text;
       document.getElementById('modalIcon').textContent=icon;
+      const starEl=document.getElementById('modalStars');
+      starEl.textContent=stars?'★'.repeat(stars)+'☆'.repeat(3-stars):'';
+      starEl.style.display=stars?'block':'none';
+      const card=document.querySelector('.modal-card');
+      card.classList.toggle('win',!!won);
       const next=document.getElementById('nextBtn');
       next.style.display=(won && level<20)?'block':'none';
       document.getElementById('modal').classList.add('show');
@@ -367,6 +414,7 @@
       if(n>unlocked) return;
       level=n; game=new Chess(); selected=null; legalTargets=[]; lastMove=[]; aiThinking=false;
       document.getElementById('modal').classList.remove('show');
+      document.querySelector('.modal-card').classList.remove('win');
       document.getElementById('levelTitle').textContent='Level '+level;
       document.getElementById('difficulty').textContent=levelsMeta[level-1];
       renderLevels(); renderBoard();
