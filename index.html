@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <meta name="description" content="LevelChess - beat the chess AI level by level." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <title>LevelChess</title>
+  <style>
+    :root{
+      --bg:#08111f; --card:#101b2d; --card2:#17243a; --text:#f8fafc;
+      --muted:#9fb0c9; --accent:#f59e0b; --accent2:#22c55e;
+      --light:#e9d5b5; --dark:#8b5e3c; --select:#facc15; --move:#22c55e;
+      --danger:#ef4444;
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    body{
+      margin:0; min-height:100vh; color:var(--text);
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:
+        radial-gradient(circle at top, #183052 0, #0c1728 36%, var(--bg) 72%);
+      display:flex; justify-content:center;
+    }
+    .app{width:min(100%,560px);padding:16px 14px 36px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+    .brand{display:flex;align-items:center;gap:10px}
+    .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,#f59e0b,#f97316);display:grid;place-items:center;font-size:27px;box-shadow:0 8px 24px #0005}
+    h1{font-size:22px;margin:0;line-height:1.05}
+    .subtitle{font-size:12px;color:var(--muted);margin-top:3px}
+    .pill{font-size:12px;font-weight:800;background:#ffffff12;border:1px solid #ffffff1c;padding:8px 10px;border-radius:999px}
+    .panel{background:linear-gradient(180deg,#142239ee,#0f1b2eee);border:1px solid #ffffff12;border-radius:18px;padding:13px;box-shadow:0 14px 40px #0006}
+    .levelrow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+    .leveltitle{font-weight:900;font-size:17px}
+    .difficulty{font-size:12px;color:#fde68a;background:#f59e0b1a;border:1px solid #f59e0b50;padding:5px 8px;border-radius:999px}
+    .status{min-height:26px;display:flex;align-items:center;justify-content:center;text-align:center;color:#dbeafe;font-size:14px;font-weight:700;margin-bottom:10px}
+    .board-wrap{position:relative;width:100%;aspect-ratio:1;border-radius:12px;overflow:hidden;border:3px solid #26364f;box-shadow:0 12px 30px #0007}
+    .board{display:grid;grid-template-columns:repeat(8,1fr);width:100%;height:100%}
+    .sq{position:relative;border:0;padding:0;display:grid;place-items:center;font-size:clamp(28px,9vw,48px);line-height:1;cursor:pointer;user-select:none}
+    .light{background:var(--light)} .dark{background:var(--dark)}
+    .sq.selected{outline:4px solid var(--select);outline-offset:-4px}
+    .sq.legal::after{content:"";position:absolute;width:24%;height:24%;border-radius:50%;background:#22c55ebd;box-shadow:0 0 0 4px #ffffff33}
+    .sq.capture::after{content:"";position:absolute;inset:8%;border:4px solid #22c55ecc;border-radius:50%}
+    .sq.last{box-shadow:inset 0 0 0 999px #38bdf82b}
+    .coord{position:absolute;font-size:9px;font-weight:900;opacity:.55;pointer-events:none}
+    .file{right:3px;bottom:2px}.rank{left:3px;top:2px}
+    .controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}
+    button.ctrl{border:1px solid #ffffff18;background:#ffffff0e;color:white;border-radius:12px;padding:11px 8px;font-weight:800;font-size:13px}
+    button.ctrl:active{transform:scale(.98)}
+    .primary{background:linear-gradient(135deg,#f59e0b,#f97316)!important;color:#111827!important;border:none!important}
+    .progress{margin-top:14px}
+    .progress-head{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-bottom:7px}
+    .bar{height:9px;background:#ffffff12;border-radius:999px;overflow:hidden}
+    .bar>i{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#f59e0b);width:5%;border-radius:999px}
+    .levels{margin-top:14px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+    .lvl{aspect-ratio:1;border-radius:12px;border:1px solid #ffffff14;background:#ffffff0b;color:#dbeafe;font-weight:900;display:grid;place-items:center;position:relative}
+    .lvl.current{border-color:#f59e0b;background:#f59e0b20;color:#fde68a}
+    .lvl.locked{opacity:.34}
+    .lvl.done::after{content:"✓";position:absolute;right:4px;top:1px;color:#4ade80;font-size:11px}
+    .tip{margin-top:13px;color:var(--muted);font-size:12px;text-align:center;line-height:1.45}
+    .modal{position:fixed;inset:0;background:#020617d9;display:none;align-items:center;justify-content:center;padding:22px;z-index:20}
+    .modal.show{display:flex}
+    .modal-card{width:min(100%,390px);background:#111d31;border:1px solid #ffffff1a;border-radius:22px;padding:24px;text-align:center;box-shadow:0 28px 80px #000b}
+    .trophy{font-size:64px}.modal h2{margin:8px 0 7px;font-size:25px}.modal p{color:var(--muted);line-height:1.5;margin:0 0 16px}
+    .modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .modal-actions button{padding:12px;border-radius:12px;border:1px solid #ffffff1a;background:#ffffff0e;color:white;font-weight:900}
+    .modal-actions .next{background:linear-gradient(135deg,#22c55e,#16a34a);border:0}
+    .thinking{animation:pulse 1s infinite alternate}
+    @keyframes pulse{from{opacity:.55}to{opacity:1}}
+    @media (max-width:380px){.app{padding:10px 9px 24px}.panel{padding:10px}.levels{gap:6px}.sq{font-size:clamp(25px,9.6vw,41px)}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">♞</div>
+        <div><h1>LevelChess</h1><div class="subtitle">Win. Unlock. Master.</div></div>
+      </div>
+      <div class="pill" id="bestPill">Unlocked 1/20</div>
+    </div>
+
+    <section class="panel">
+      <div class="levelrow">
+        <div class="leveltitle" id="levelTitle">Level 1</div>
+        <div class="difficulty" id="difficulty">Rookie</div>
+      </div>
+      <div class="status" id="status">Your turn — you are White</div>
+
+      <div class="board-wrap"><div class="board" id="board"></div></div>
+
+      <div class="controls">
+        <button class="ctrl" id="newBtn">↻ Restart</button>
+        <button class="ctrl" id="hintBtn">💡 Hint</button>
+        <button class="ctrl primary" id="soundBtn">🔊 Sound</button>
+      </div>
+
+      <div class="progress">
+        <div class="progress-head"><span>Journey progress</span><span id="progressText">1 / 20</span></div>
+        <div class="bar"><i id="barFill"></i></div>
+      </div>
+
+      <div class="levels" id="levels"></div>
+      <div class="tip">Tap a white piece, then tap a highlighted square. Beat the AI to unlock the next level.</div>
+    </section>
+  </main>
+
+  <div class="modal" id="modal">
+    <div class="modal-card">
+      <div class="trophy" id="modalIcon">🏆</div>
+      <h2 id="modalTitle">Level Complete!</h2>
+      <p id="modalText">Nice game.</p>
+      <div class="modal-actions">
+        <button id="againBtn">Play Again</button>
+        <button class="next" id="nextBtn">Next Level →</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script>
+    const PIECES = {
+      w:{k:'♔',q:'♕',r:'♖',b:'♗',n:'♘',p:'♙'},
+      b:{k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'}
+    };
+    const VALUES = {p:100,n:320,b:330,r:500,q:900,k:20000};
+    const levelsMeta = [
+      'Rookie','Rookie','Rookie','Beginner','Beginner',
+      'Beginner+','Learner','Learner+','Club','Club+',
+      'Tactical','Tactical+','Strong','Strong+','Advanced',
+      'Advanced+','Expert','Expert+','Master','Final Boss'
+    ];
+
+    let game = new Chess();
+    let selected = null;
+    let legalTargets = [];
+    let level = 1;
+    let unlocked = Math.max(1, Math.min(20, Number(localStorage.getItem('lc_unlocked') || 1)));
+    let lastMove = [];
+    let soundOn = localStorage.getItem('lc_sound') !== 'off';
+    let aiThinking = false;
+
+    const boardEl = document.getElementById('board');
+    const statusEl = document.getElementById('status');
+    const levelsEl = document.getElementById('levels');
+
+    function beep(freq=520,duration=.05){
+      if(!soundOn) return;
+      try{
+        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const osc=ctx.createOscillator(), gain=ctx.createGain();
+        osc.frequency.value=freq; gain.gain.value=.035;
+        osc.connect(gain); gain.connect(ctx.destination); osc.start();
+        gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+duration);
+        osc.stop(ctx.currentTime+duration);
+      }catch(e){}
+    }
+
+    function renderBoard(){
+      boardEl.innerHTML='';
+      const files='abcdefgh';
+      for(let r=8;r>=1;r--){
+        for(let f=0;f<8;f++){
+          const sqName=files[f]+r;
+          const piece=game.get(sqName);
+          const btn=document.createElement('button');
+          btn.className='sq '+(((r+f)%2===0)?'dark':'light');
+          if(selected===sqName) btn.classList.add('selected');
+          if(lastMove.includes(sqName)) btn.classList.add('last');
+          const target=legalTargets.find(m=>m.to===sqName);
+          if(target) btn.classList.add(target.captured?'capture':'legal');
+          btn.dataset.square=sqName;
+          if(piece) btn.textContent=PIECES[piece.color][piece.type];
+
+          if(r===1){
+            const c=document.createElement('span'); c.className='coord file'; c.textContent=files[f]; btn.appendChild(c);
+          }
+          if(f===0){
+            const c=document.createElement('span'); c.className='coord rank'; c.textContent=r; btn.appendChild(c);
+          }
+          btn.addEventListener('click',()=>onSquare(sqName));
+          boardEl.appendChild(btn);
+        }
+      }
+      renderStatus();
+    }
+
+    function onSquare(square){
+      if(aiThinking || game.game_over() || game.turn()!=='w') return;
+      const piece=game.get(square);
+      if(selected){
+        const move=legalTargets.find(m=>m.to===square);
+        if(move){
+          const made=game.move({from:selected,to:square,promotion:'q'});
+          if(made){
+            lastMove=[made.from,made.to]; selected=null; legalTargets=[]; beep(650,.06);
+            renderBoard();
+            if(checkEnd()) return;
+            setTimeout(aiMove,260);
+            return;
+          }
+        }
+      }
+      if(piece && piece.color==='w'){
+        selected=square;
+        legalTargets=game.moves({square,verbose:true});
+        beep(430,.03);
+      }else{
+        selected=null; legalTargets=[];
+      }
+      renderBoard();
+    }
+
+    function renderStatus(){
+      if(game.game_over()) return;
+      if(aiThinking){
+        statusEl.textContent='AI is thinking…';
+        statusEl.classList.add('thinking');
+      }else{
+        statusEl.classList.remove('thinking');
+        const check=game.in_check()?' — CHECK!':'';
+        statusEl.textContent=(game.turn()==='w'?'Your turn':'AI turn')+check;
+      }
+    }
+
+    function evaluate(g){
+      if(g.in_checkmate()) return g.turn()==='w' ? 999999 : -999999;
+      if(g.in_draw() || g.in_stalemate() || g.in_threefold_repetition()) return 0;
+      let score=0;
+      const board=g.board();
+      for(const row of board) for(const p of row){
+        if(!p) continue;
+        let v=VALUES[p.type]||0;
+        if(p.type==='p') v += p.color==='b' ? (6-p.rank)*0 : 0;
+        score += p.color==='b'?v:-v;
+      }
+      if(g.in_check()) score += g.turn()==='w'?35:-35;
+      return score;
+    }
+
+    function orderedMoves(g){
+      const ms=g.moves({verbose:true});
+      return ms.sort((a,b)=>{
+        const va=(a.captured?VALUES[a.captured]:0)+(a.promotion?800:0);
+        const vb=(b.captured?VALUES[b.captured]:0)+(b.promotion?800:0);
+        return vb-va;
+      });
+    }
+
+    function minimax(g, depth, alpha, beta, maximizing){
+      if(depth===0 || g.game_over()) return evaluate(g);
+      const moves=orderedMoves(g);
+      if(maximizing){
+        let best=-Infinity;
+        for(const m of moves){
+          g.move(m.san); best=Math.max(best,minimax(g,depth-1,alpha,beta,false)); g.undo();
+          alpha=Math.max(alpha,best); if(beta<=alpha) break;
+        }
+        return best;
+      }else{
+        let best=Infinity;
+        for(const m of moves){
+          g.move(m.san); best=Math.min(best,minimax(g,depth-1,alpha,beta,true)); g.undo();
+          beta=Math.min(beta,best); if(beta<=alpha) break;
+        }
+        return best;
+      }
+    }
+
+    function chooseAiMove(){
+      const moves=orderedMoves(game);
+      if(!moves.length) return null;
+
+      if(level<=3) return moves[Math.floor(Math.random()*moves.length)];
+
+      if(level<=7){
+        const weighted=moves.map(m=>({
+          m,
+          s:(m.captured?VALUES[m.captured]:0)+(m.promotion?700:0)+Math.random()*Math.max(220,900-level*70)
+        }));
+        weighted.sort((a,b)=>b.s-a.s);
+        return weighted[0].m;
+      }
+
+      if(level<=12){
+        let best=-Infinity, choice=moves[0];
+        for(const m of moves){
+          game.move(m.san);
+          let s=evaluate(game)+Math.random()*(220-level*10);
+          game.undo();
+          if(s>best){best=s;choice=m;}
+        }
+        return choice;
+      }
+
+      const depth = level>=18 ? 3 : 2;
+      let best=-Infinity, choices=[];
+      const cap = depth===3 ? Math.min(moves.length,16) : moves.length;
+      for(let i=0;i<cap;i++){
+        const m=moves[i];
+        game.move(m.san);
+        const s=minimax(game,depth-1,-Infinity,Infinity,false);
+        game.undo();
+        if(s>best+1){best=s;choices=[m]}
+        else if(Math.abs(s-best)<=1) choices.push(m);
+      }
+      return choices[Math.floor(Math.random()*choices.length)] || moves[0];
+    }
+
+    function aiMove(){
+      if(game.game_over()) return;
+      aiThinking=true; renderStatus();
+      setTimeout(()=>{
+        const m=chooseAiMove();
+        if(m){
+          const made=game.move(m.san);
+          lastMove=[made.from,made.to];
+          beep(made.captured?260:360,.07);
+        }
+        aiThinking=false; renderBoard(); checkEnd();
+      }, level>=18?450:180);
+    }
+
+    function checkEnd(){
+      if(!game.game_over()) return false;
+      let win=false, title='', text='', icon='';
+
+      if(game.in_checkmate()){
+        win=game.turn()==='b';
+        if(win){
+          title='Level '+level+' Complete!';
+          text=level<20?'Great! Level '+Math.min(20,level+1)+' is now unlocked.':'You defeated the Final Boss. All 20 levels complete!';
+          icon='🏆';
+          if(level===unlocked && unlocked<20){
+            unlocked++;
+            localStorage.setItem('lc_unlocked',unlocked);
+          }
+          beep(900,.18);
+        }else{
+          title='Checkmate';
+          text='The AI won this round. Try again — every game makes you stronger.';
+          icon='♟️'; beep(180,.18);
+        }
+      }else{
+        title='Draw Game';
+        text='Close battle! Replay the level and go for the win.';
+        icon='🤝';
+      }
+
+      statusEl.textContent=win?'You won!':'Game over';
+      showModal(title,text,icon,win);
+      renderLevels();
+      return true;
+    }
+
+    function showModal(title,text,icon,won){
+      document.getElementById('modalTitle').textContent=title;
+      document.getElementById('modalText').textContent=text;
+      document.getElementById('modalIcon').textContent=icon;
+      const next=document.getElementById('nextBtn');
+      next.style.display=(won && level<20)?'block':'none';
+      document.getElementById('modal').classList.add('show');
+    }
+
+    function startLevel(n){
+      if(n>unlocked) return;
+      level=n; game=new Chess(); selected=null; legalTargets=[]; lastMove=[]; aiThinking=false;
+      document.getElementById('modal').classList.remove('show');
+      document.getElementById('levelTitle').textContent='Level '+level;
+      document.getElementById('difficulty').textContent=levelsMeta[level-1];
+      renderLevels(); renderBoard();
+    }
+
+    function renderLevels(){
+      levelsEl.innerHTML='';
+      for(let i=1;i<=20;i++){
+        const b=document.createElement('button'); b.className='lvl'; b.textContent=i;
+        if(i===level) b.classList.add('current');
+        if(i>unlocked) b.classList.add('locked');
+        if(i<unlocked) b.classList.add('done');
+        b.disabled=i>unlocked;
+        b.addEventListener('click',()=>startLevel(i));
+        levelsEl.appendChild(b);
+      }
+      document.getElementById('bestPill').textContent='Unlocked '+unlocked+'/20';
+      document.getElementById('progressText').textContent=unlocked+' / 20';
+      document.getElementById('barFill').style.width=(unlocked/20*100)+'%';
+    }
+
+    function hint(){
+      if(aiThinking || game.turn()!=='w' || game.game_over()) return;
+      const moves=game.moves({verbose:true});
+      if(!moves.length) return;
+      let best=moves[0], bestScore=-Infinity;
+      for(const m of moves){
+        game.move(m.san);
+        const score=-evaluate(game)+(m.captured?VALUES[m.captured]:0);
+        game.undo();
+        if(score>bestScore){bestScore=score;best=m;}
+      }
+      selected=best.from;
+      legalTargets=game.moves({square:best.from,verbose:true});
+      renderBoard();
+      statusEl.textContent='Hint: try '+best.from.toUpperCase()+' → '+best.to.toUpperCase();
+      beep(760,.08);
+    }
+
+    document.getElementById('newBtn').addEventListener('click',()=>startLevel(level));
+    document.getElementById('hintBtn').addEventListener('click',hint);
+    document.getElementById('soundBtn').addEventListener('click',()=>{
+      soundOn=!soundOn; localStorage.setItem('lc_sound',soundOn?'on':'off');
+      document.getElementById('soundBtn').textContent=soundOn?'🔊 Sound':'🔇 Muted';
+      if(soundOn) beep(600,.05);
+    });
+    document.getElementById('againBtn').addEventListener('click',()=>startLevel(level));
+    document.getElementById('nextBtn').addEventListener('click',()=>startLevel(Math.min(unlocked,level+1)));
+
+    document.getElementById('soundBtn').textContent=soundOn?'🔊 Sound':'🔇 Muted';
+    renderLevels();
+    startLevel(1);
+
+    if('serviceWorker' in navigator){
+      window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+    }
+  </script>
+</body>
+</html>
