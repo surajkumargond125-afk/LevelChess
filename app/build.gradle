@@ -4,12 +4,12 @@ plugins {
 
 android {
     namespace 'com.suraj.levelchess'
-    compileSdk 37
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.suraj.levelchess"
         minSdk 23
-        targetSdk 37
+        targetSdk 35
         versionCode 1
         versionName "1.0"
     }
